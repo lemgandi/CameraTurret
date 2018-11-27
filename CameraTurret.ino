@@ -112,8 +112,18 @@ void moveServo(command whichWhere)
       servoP=&Vservo;
       
    if((whichWhere.theDirection == Left) || (whichWhere.theDirection == Down))
-      whichWhere.theDirection=-whichWhere.theDirection;
-   servoP->write(whichWhere.theDirection);
+      whichWhere.distance=-whichWhere.distance;
+#ifdef CHS_DEBUG
+   if (servoP == &Hservo)
+      Serial.print("servo: Hservo ");
+   else
+      Serial.print("servo: Vservo ");
+   Serial.print("theDirection: ");
+   Serial.print(whichWhere.theDirection);
+   Serial.print(" Distance: ");
+   Serial.println(whichWhere.distance);
+#endif
+   servoP->write(whichWhere.distance);
    
 }
 /*
