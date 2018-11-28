@@ -1,7 +1,22 @@
 /*
  *  Arduino Camera Turret Control
- *
- *  Charles Shapiro Mar 2018
+ 
+    This file is part of CameraTurret.
+
+    CameraTurret is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    CameraTurret is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with CameraTurret.  If not, see <https://www.gnu.org/licenses/>.
+
+ *  Charles Shapiro Nov 2018
  */
 #include <Servo.h>
 #include <string.h>
@@ -10,15 +25,19 @@
 
 #define HSERVOPIN 10
 #define VSERVOPIN 9
-#define HSERVOMIN 10
-#define HSERVOMAX 170
-#define VSERVOMIN 60
-#define VSERVOMAX 170
+
+// These may need adjustment for your turret.
+#define HSERVOMIN 0
+#define HSERVOMAX 180
+#define VSERVOMIN 0
+#define VSERVOMAX 112
 #define HSERVOCENTER ((HSERVOMAX - HSERVOMIN) / 2)
 #define VSERVOCENTER ((VSERVOMAX - VSERVOMIN) / 2)
 
 Servo Hservo;
 Servo Vservo;
+int CurrentHPosition;
+int CurrentVPosition;
 
 #define CMDSTRSIZE 65 // Max number of chars the UART will hold
 char Cmdstr[CMDSTRSIZE];
@@ -107,66 +126,62 @@ void setup() {
   memset(Cmdstr,0,(sizeof(Cmdstr)-1) );
   InCursor=Cmdstr;
   CmdSendingState=None;
+  CurrentHPosition=HSERVOCENTER;
+  CurrentVPosition=VSERVOCENTER;
+  
 }
+/*
+Move horizontal and vertical servos to new position specified in command.
+*/
 void moveServo(command whichWhere)
 {
-   Servo *servoP;
-   static int currentHDistance;
-   static int currentVDistance;
-   int mappedDistance;
-   
-   if((whichWhere.theDirection == Right) || (whichWhere.theDirection == Left))
-      servoP=&Hservo;
-   else
-      servoP=&Vservo;
-      
-   if((whichWhere.theDirection == Left) || (whichWhere.theDirection == Down))
-      whichWhere.distance=-whichWhere.distance;
+
    switch(whichWhere.theDirection) {
-      case Left:      
+      case Left:
+      	 CurrentHPosition -= whichWhere.distance;
+	 break;
       case Right:
-         currentHDistance += whichWhere.distance;
+         CurrentHPosition += whichWhere.distance;
 	 break;
       case Up:
+         CurrentVPosition -= whichWhere.distance;
+	 break;
       case Down:
-         currentVDistance += whichWhere.distance;
+         CurrentVPosition += whichWhere.distance;
 	 break;
       // case Center:
       default:
+         CurrentHPosition=HSERVOCENTER;
+	 CurrentVPosition=VSERVOCENTER;
          break;
    }
+   // Limit current position.
+   if(CurrentHPosition > HSERVOMAX)
+      CurrentHPosition=HSERVOMAX;
+   if(CurrentHPosition < HSERVOMIN)
+      CurrentHPosition = HSERVOMIN;
+   if(CurrentVPosition > VSERVOMAX)
+      CurrentVPosition=VSERVOMAX;
+   if(CurrentVPosition < VSERVOMIN)
+      CurrentVPosition=VSERVOMIN;
+      
 #ifdef CHS_DEBUG
-   if (servoP == &Hservo)
-      Serial.print("servo: Hservo ");
-   else
-      Serial.print("servo: Vservo ");
    Serial.print("theDirection: ");
    Serial.print(whichWhere.theDirection);
    Serial.print(" Distance: ");
    Serial.print(whichWhere.distance);
-   Serial.print(" currentHDistance: ");
-   Serial.print(currentHDistance);
-   Serial.print(" currentVDistance: ");
-   Serial.print(currentVDistance);
+   Serial.print(" Writing HPosition: ");
+   Serial.print(CurrentHPosition);
+   Serial.print(" VPosition: " );
+   Serial.print(CurrentVPosition);
    Serial.println(" ");
 #endif
-   if(whichWhere.theDirection != Center)
-      servoP->write(whichWhere.distance);
-   else
-   {
-#ifdef CHS_DEBUG
-   Serial.print("Writing HDistance: ");
-   Serial.print(-currentHDistance);
-   Serial.print(" VDistance: " );
-   Serial.print(-currentVDistance);
-   Serial.println(" ");
-#endif
-      Hservo.write(HSERVOCENTER);
-      Vservo.write(VSERVOCENTER);
 
-      currentHDistance = currentVDistance = 0;
-   }
+   Hservo.write(CurrentHPosition);
    delay(15);
+   Vservo.write(CurrentVPosition);
+   delay(15);
+   
 }
 /*
   Loop part of main
